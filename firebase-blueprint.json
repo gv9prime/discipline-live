@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user-specific settings, streaks, and overall progress.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "streak": { "type": "number" },
+        "dailyGoal": { "type": "number" },
+        "weeklyCompletion": { "type": "number" }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "A specific objective or task for the user.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["Studying", "Reading", "Habit", "Work", "Home"] },
+        "status": { "type": "string", "enum": ["pending", "in-progress", "completed", "urgent", "done"] },
+        "progress": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "status"]
+    },
+    "Workout": {
+      "title": "Workout",
+      "description": "A training session definition and log.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "duration": { "type": "number" },
+        "intensity": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "sets": { "type": "number" },
+              "reps": { "type": "string" },
+              "image": { "type": "string" }
+            }
+          }
+        },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "date"]
+    },
+    "NutritionLog": {
+      "title": "Nutrition Log",
+      "description": "Daily food intake log.",
+      "type": "object",
+      "properties": {
+        "mealType": { "type": "string", "enum": ["Pequeno-almoço", "Almoço", "Jantar", "Snacks"] },
+        "calories": { "type": "number" },
+        "items": { "type": "array", "items": { "type": "string" } },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["mealType", "calories", "date"]
+    },
+    "JournalEntry": {
+      "title": "Journal Entry",
+      "description": "Daily reflection and mindset notes.",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string" },
+        "mood": { "type": "string" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["content", "date"]
+    },
+    "StudyData": {
+      "title": "Study Data",
+      "description": "Academic notes, summaries, and observations per subject.",
+      "type": "object",
+      "properties": {
+        "notes": { "type": "string" },
+        "summaries": { "type": "string" },
+        "observations": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document."
+    },
+    "/users/{userId}/goals/{goalId}": {
+      "schema": "Goal",
+      "description": "User goals."
+    },
+    "/users/{userId}/workouts/{workoutId}": {
+      "schema": "Workout",
+      "description": "User workout logs."
+    },
+    "/users/{userId}/nutrition/{logId}": {
+      "schema": "NutritionLog",
+      "description": "User nutrition logs."
+    },
+    "/users/{userId}/journal/{entryId}": {
+      "schema": "JournalEntry",
+      "description": "User journal entries."
+    },
+    "/users/{userId}/studies/{subjectId}": {
+      "schema": "StudyData",
+      "description": "User academic data per subject."
+    }
+  }
+}

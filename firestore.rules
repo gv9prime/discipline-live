@@ -1,0 +1,167 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: /users/{userId}
+// Fields:
+//   - uid: string (required)
+//   - displayName: string (required)
+//   - photoURL: string (optional)
+//   - streak: number (optional)
+//   - dailyGoal: number (optional)
+//   - weeklyCompletion: number (optional)
+//
+// Collection: /users/{userId}/goals/{goalId}
+// Fields:
+//   - title: string (required)
+//   - description: string (optional)
+//   - category: string (enum: Studying, Reading, Habit, Work, Home)
+//   - status: string (enum: pending, in-progress, completed, urgent, done)
+//   - progress: number (optional)
+//   - createdAt: timestamp (required)
+//
+// Collection: /users/{userId}/workouts/{workoutId}
+// Fields:
+//   - title: string (required)
+//   - description: string (optional)
+//   - duration: number (optional)
+//   - intensity: string (enum: Low, Medium, High)
+//   - exercises: list (optional)
+//   - date: timestamp (required)
+//
+// Collection: /users/{userId}/nutrition/{logId}
+// Fields:
+//   - mealType: string (enum: Pequeno-almoço, Almoço, Jantar, Snacks)
+//   - calories: number (required)
+//   - items: list (optional)
+//   - date: string (required, format: YYYY-MM-DD)
+//
+// Collection: /users/{userId}/journal/{entryId}
+// Fields:
+//   - content: string (required)
+//   - mood: string (optional)
+//   - date: string (required, format: YYYY-MM-DD)
+//
+// Collection: /users/{userId}/studies/{subjectId}
+// Fields:
+//   - notes: string (optional)
+//   - summaries: string (optional)
+//   - observations: string (optional)
+//   - updatedAt: timestamp (optional)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid is string && data.displayName is string &&
+             (!('photoURL' in data) || data.photoURL is string) &&
+             (!('streak' in data) || data.streak is number) &&
+             (!('dailyGoal' in data) || data.dailyGoal is number) &&
+             (!('weeklyCompletion' in data) || data.weeklyCompletion is number);
+    }
+
+    function isValidGoal(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.status in ['pending', 'in-progress', 'completed', 'urgent', 'done'] &&
+             (!('category' in data) || data.category in ['Studying', 'Reading', 'Habit', 'Work', 'Home']) &&
+             (!('progress' in data) || (data.progress is number && data.progress >= 0 && data.progress <= 100)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidWorkout(data) {
+      return data.title is string && data.title.size() > 0 &&
+             (!('intensity' in data) || data.intensity in ['Low', 'Medium', 'High']) &&
+             data.date is timestamp;
+    }
+
+    function isValidNutrition(data) {
+      return data.mealType in ['Pequeno-almoço', 'Almoço', 'Jantar', 'Snacks'] &&
+             data.calories is number && data.calories >= 0 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidJournal(data) {
+      return data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidStudyData(data) {
+      return (!('notes' in data) || (data.notes is string && data.notes.size() < 10000)) &&
+             (!('summaries' in data) || (data.summaries is string && data.summaries.size() < 10000)) &&
+             (!('observations' in data) || (data.observations is string && data.observations.size() < 10000)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // ===============================================================
+    // Match Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      
+      match /goals/{goalId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow update: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+      
+      match /workouts/{workoutId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidWorkout(request.resource.data);
+        allow update: if isOwner(userId) && isValidWorkout(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+      
+      match /nutrition/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidNutrition(request.resource.data);
+        allow update: if isOwner(userId) && isValidNutrition(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+      
+      match /journal/{entryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidJournal(request.resource.data);
+        allow update: if isOwner(userId) && isValidJournal(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /studies/{subjectId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidStudyData(request.resource.data);
+        allow update: if isOwner(userId) && isValidStudyData(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
