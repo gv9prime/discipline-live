@@ -111,6 +111,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Email ou palavra-passe incorretos.');
       } else if (error.code === 'auth/invalid-email') {
         throw new Error('O formato do email é inválido.');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('O login com Email/Senha não está ativado no Firebase Console.');
       }
       throw error;
     }
@@ -126,6 +128,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Este email já está a ser utilizado.');
       } else if (error.code === 'auth/weak-password') {
         throw new Error('A palavra-passe deve ter pelo menos 6 caracteres.');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('O registo com Email/Senha não está ativado no Firebase Console.');
       }
       throw error;
     }
