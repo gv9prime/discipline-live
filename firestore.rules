@@ -84,7 +84,8 @@ service cloud.firestore {
              (!('photoURL' in data) || data.photoURL is string) &&
              (!('streak' in data) || data.streak is number) &&
              (!('dailyGoal' in data) || data.dailyGoal is number) &&
-             (!('weeklyCompletion' in data) || data.weeklyCompletion is number);
+             (!('weeklyCompletion' in data) || data.weeklyCompletion is number) &&
+             (!('createdAt' in data) || data.createdAt is string);
     }
 
     function isValidGoal(data) {

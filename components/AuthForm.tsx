@@ -31,6 +31,11 @@ export function AuthForm() {
     }
   };
 
+  const toggleMode = () => {
+    setIsRegister(!isRegister);
+    setError('');
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
       <div className="w-full max-w-md space-y-8">
@@ -119,7 +124,7 @@ export function AuthForm() {
         <p className="text-center text-on-surface-variant text-sm">
           {isRegister ? 'Already have an account?' : "Don't have an account yet?"}{' '}
           <button
-            onClick={() => setIsRegister(!isRegister)}
+            onClick={toggleMode}
             className="text-primary font-bold hover:underline"
           >
             {isRegister ? 'Sign In' : 'Register Now'}

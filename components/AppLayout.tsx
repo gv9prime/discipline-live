@@ -6,6 +6,7 @@ import { Bell, Activity, Trophy, Dumbbell, BookOpen, Edit3, LogOut, Download } f
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 import { AuthForm } from '@/components/AuthForm';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -13,6 +14,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useFirebase();
   const pathname = usePathname();
+  const [showDownloadInfo, setShowDownloadInfo] = React.useState(false);
 
   if (loading) {
     return (
@@ -48,14 +50,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <button 
               className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all text-xs font-bold uppercase tracking-widest border border-primary/20"
-              onClick={() => {}} 
+              onClick={() => setShowDownloadInfo(!showDownloadInfo)} 
             >
               <Download size={16} />
               Download App
             </button>
             <button 
               className="sm:hidden p-2 rounded-full hover:bg-white/5 text-primary transition-colors shrink-0"
-              onClick={() => {}}
+              onClick={() => setShowDownloadInfo(!showDownloadInfo)}
               title="Download App"
             >
               <Download size={20} />
@@ -72,6 +74,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
+        
+        {showDownloadInfo && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-primary/10 border-t border-primary/20 overflow-hidden"
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex justify-between items-center">
+              <p className="text-[10px] sm:text-xs text-primary font-bold uppercase tracking-widest">
+                Para instalar, use a opção &quot;Adicionar ao ecrã principal&quot; no menu do seu navegador.
+              </p>
+              <button onClick={() => setShowDownloadInfo(false)} className="text-primary hover:text-white transition-colors">
+                <Activity size={16} className="rotate-45" />
+              </button>
+            </div>
+          </motion.div>
+        )}
       </header>
 
       <main className="w-full">{children}</main>

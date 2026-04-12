@@ -31,26 +31,34 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Ensure user document exists
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            uid: user.uid,
-            displayName: user.displayName || 'User',
-            photoURL: user.photoURL || '',
-            streak: 0,
-            dailyGoal: 75,
-            weeklyCompletion: 0
-          });
+      try {
+        if (user) {
+          // Ensure user document exists
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
+          
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              uid: user.uid,
+              displayName: user.displayName || 'User',
+              photoURL: user.photoURL || '',
+              streak: 0,
+              dailyGoal: 75,
+              weeklyCompletion: 0,
+              createdAt: new Date().toISOString()
+            });
+          }
+          setUser(user);
+        } else {
+          setUser(null);
         }
+      } catch (error) {
+        console.error('Error in auth state change:', error);
+        // Still set user if possible, or at least stop loading
         setUser(user);
-      } else {
-        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
