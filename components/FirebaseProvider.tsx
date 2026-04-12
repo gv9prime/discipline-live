@@ -58,13 +58,17 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
             }, { merge: true }).catch(err => console.error('Failed to create user doc:', err));
           }
           setUser(user);
+          setLoading(false);
         } else {
-          setUser(null);
+          // Automatically sign in anonymously if no user is present
+          signInAnonymously(auth).catch(err => {
+            console.error('Auto anonymous login failed:', err);
+            setLoading(false);
+          });
         }
       } catch (error) {
         console.error('Error in auth state change:', error);
         setUser(user);
-      } finally {
         setLoading(false);
       }
     });

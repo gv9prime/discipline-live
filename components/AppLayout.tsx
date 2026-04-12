@@ -24,10 +24,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
-    return <AuthForm />;
-  }
-
   return (
     <ErrorBoundary>
       <div className="min-h-screen pb-32 bg-background">
@@ -37,7 +33,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 shrink-0">
               <Image
-                src={user.photoURL || 'https://picsum.photos/seed/user/100/100'}
+                src={user?.photoURL || 'https://picsum.photos/seed/user/100/100'}
                 alt="Profile"
                 width={40}
                 height={40}
@@ -64,13 +60,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
             <button className="p-2 rounded-full hover:bg-white/5 text-primary transition-colors shrink-0">
               <Bell size={24} />
-            </button>
-            <button 
-              onClick={() => logout()}
-              className="p-2 rounded-full hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors shrink-0"
-              title="Sair"
-            >
-              <LogOut size={20} />
             </button>
           </div>
         </div>
