@@ -11,7 +11,8 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
   browserPopupRedirectResolver,
-  signInAnonymously
+  signInAnonymously,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -23,6 +24,7 @@ interface FirebaseContextType {
   loginAnonymously: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -36,11 +38,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          // Ensure user document exists
+          // Ensure user document exists - use a separate function to avoid blocking auth state
           const userRef = doc(db, 'users', user.uid);
-          const userSnap = await getDoc(userRef);
+          const userSnap = await getDoc(userRef).catch(() => null);
           
-          if (!userSnap.exists()) {
+          if (!userSnap || !userSnap.exists()) {
             await setDoc(userRef, {
               uid: user.uid,
               displayName: user.displayName || (user.isAnonymous ? 'Convidado' : 'User'),
@@ -50,7 +52,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
               weeklyCompletion: 0,
               createdAt: new Date().toISOString(),
               isAnonymous: user.isAnonymous || false
-            });
+            }, { merge: true }).catch(err => console.error('Failed to create user doc:', err));
           }
           setUser(user);
         } else {
@@ -77,7 +79,9 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       if (error.code === 'auth/popup-blocked') {
         throw new Error('O popup foi bloqueado pelo navegador. Por favor, permita popups para este site.');
       } else if (error.code === 'auth/unauthorized-domain') {
-        throw new Error('Este domínio não está autorizado no Firebase Console. Adicione o URL da app aos domínios autorizados.');
+        throw new Error('Este domínio não está autorizado no Firebase Console. Adicione "' + window.location.hostname + '" aos domínios autorizados.');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('O login com Google não está ativado no Firebase Console.');
       }
       throw error;
     }
@@ -86,8 +90,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const loginAnonymously = async () => {
     try {
       await signInAnonymously(auth);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Anonymous login failed:', error);
+      if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('O login anónimo não está ativado no Firebase Console.');
+      }
       throw error;
     }
   };
@@ -95,8 +102,13 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const loginWithEmail = async (email: string, pass: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Email login failed:', error);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        throw new Error('Email ou palavra-passe incorretos.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('O formato do email é inválido.');
+      }
       throw error;
     }
   };
@@ -105,19 +117,27 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(res.user, { displayName: name });
-      
-      // Create user doc immediately for email users
-      const userRef = doc(db, 'users', res.user.uid);
-      await setDoc(userRef, {
-        uid: res.user.uid,
-        displayName: name,
-        photoURL: '',
-        streak: 0,
-        dailyGoal: 75,
-        weeklyCompletion: 0
-      });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration failed:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('Este email já está a ser utilizado.');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('A palavra-passe deve ter pelo menos 6 caracteres.');
+      }
+      throw error;
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      console.error('Password reset failed:', error);
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('Não foi encontrado nenhum utilizador com este email.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('O formato do email é inválido.');
+      }
       throw error;
     }
   };
@@ -131,7 +151,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, loading, login, loginAnonymously, loginWithEmail, registerWithEmail, logout }}>
+    <FirebaseContext.Provider value={{ user, loading, login, loginAnonymously, loginWithEmail, registerWithEmail, resetPassword, logout }}>
       {children}
     </FirebaseContext.Provider>
   );
