@@ -9,7 +9,9 @@ import {
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  browserPopupRedirectResolver,
+  signInAnonymously
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -18,6 +20,7 @@ interface FirebaseContextType {
   user: User | null;
   loading: boolean;
   login: () => Promise<void>;
+  loginAnonymously: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -40,12 +43,13 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           if (!userSnap.exists()) {
             await setDoc(userRef, {
               uid: user.uid,
-              displayName: user.displayName || 'User',
+              displayName: user.displayName || (user.isAnonymous ? 'Convidado' : 'User'),
               photoURL: user.photoURL || '',
               streak: 0,
               dailyGoal: 75,
               weeklyCompletion: 0,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              isAnonymous: user.isAnonymous || false
             });
           }
           setUser(user);
@@ -54,7 +58,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Error in auth state change:', error);
-        // Still set user if possible, or at least stop loading
         setUser(user);
       } finally {
         setLoading(false);
@@ -66,10 +69,25 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+    } catch (error: any) {
+      console.error('Google Login failed:', error);
+      if (error.code === 'auth/popup-blocked') {
+        throw new Error('O popup foi bloqueado pelo navegador. Por favor, permita popups para este site.');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        throw new Error('Este domínio não está autorizado no Firebase Console. Adicione o URL da app aos domínios autorizados.');
+      }
+      throw error;
+    }
+  };
+
+  const loginAnonymously = async () => {
+    try {
+      await signInAnonymously(auth);
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Anonymous login failed:', error);
       throw error;
     }
   };
@@ -113,7 +131,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, loading, login, loginWithEmail, registerWithEmail, logout }}>
+    <FirebaseContext.Provider value={{ user, loading, login, loginAnonymously, loginWithEmail, registerWithEmail, logout }}>
       {children}
     </FirebaseContext.Provider>
   );

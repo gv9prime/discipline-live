@@ -5,7 +5,7 @@ import { useFirebase } from '@/components/FirebaseProvider';
 import { Activity, Mail, Lock, User, ArrowRight, Chrome } from 'lucide-react';
 
 export function AuthForm() {
-  const { login, loginWithEmail, registerWithEmail } = useFirebase();
+  const { loginAnonymously, loginWithEmail, registerWithEmail } = useFirebase();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,6 +31,18 @@ export function AuthForm() {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await loginAnonymously();
+    } catch (err: any) {
+      setError('O login como convidado falhou. Verifique se o "Anonymous Auth" está ativado no Firebase Console.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleMode = () => {
     setIsRegister(!isRegister);
     setError('');
@@ -49,7 +61,7 @@ export function AuthForm() {
             Obsidian <span className="text-primary">Pulse</span>
           </h1>
           <p className="text-on-surface-variant text-lg">
-            {isRegister ? 'Create your elite profile' : 'Welcome back to the system'}
+            {isRegister ? 'Crie o seu perfil de elite' : 'Bem-vindo de volta ao sistema'}
           </p>
         </div>
 
@@ -59,7 +71,7 @@ export function AuthForm() {
               <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
               <input
                 type="text"
-                placeholder="Full Name"
+                placeholder="Nome Completo"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -72,7 +84,7 @@ export function AuthForm() {
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
             <input
               type="email"
-              placeholder="Email Address"
+              placeholder="Endereço de Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -84,7 +96,7 @@ export function AuthForm() {
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Palavra-passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -97,9 +109,9 @@ export function AuthForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-background py-4 rounded-2xl font-bold text-lg shadow-[0_0_30px_rgba(0,227,253,0.3)] hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-primary text-background py-4 rounded-2xl font-bold text-lg shadow-[0_0_30_rgba(0,227,253,0.3)] hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {loading ? 'Processing...' : (isRegister ? 'Create Account' : 'Sign In')}
+            {loading ? 'A processar...' : (isRegister ? 'Criar Conta' : 'Entrar')}
             <ArrowRight size={20} />
           </button>
         </form>
@@ -109,25 +121,26 @@ export function AuthForm() {
             <div className="w-full border-t border-white/5"></div>
           </div>
           <div className="relative flex justify-center text-xs uppercase tracking-widest">
-            <span className="bg-background px-4 text-zinc-500">Or continue with</span>
+            <span className="bg-background px-4 text-zinc-500">Ou continue como</span>
           </div>
         </div>
 
         <button
-          onClick={login}
-          className="w-full bg-surface-container-highest text-on-surface py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-white/10 transition-all border border-white/5"
+          onClick={handleGuestLogin}
+          disabled={loading}
+          className="w-full bg-surface-container-highest text-on-surface py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-white/10 transition-all border border-white/5 disabled:opacity-50"
         >
-          <Chrome size={20} />
-          Google Account
+          <User size={20} />
+          Entrar como Convidado
         </button>
 
         <p className="text-center text-on-surface-variant text-sm">
-          {isRegister ? 'Already have an account?' : "Don't have an account yet?"}{' '}
+          {isRegister ? 'Já tem uma conta?' : "Ainda não tem conta?"}{' '}
           <button
             onClick={toggleMode}
             className="text-primary font-bold hover:underline"
           >
-            {isRegister ? 'Sign In' : 'Register Now'}
+            {isRegister ? 'Entrar' : 'Registar Agora'}
           </button>
         </p>
       </div>
