@@ -30,6 +30,7 @@ interface Workout {
 export default function WorkoutPage() {
   const { user } = useFirebase();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -42,8 +43,20 @@ export default function WorkoutPage() {
       handleFirestoreError(error, OperationType.LIST, 'users/' + user.uid + '/workouts');
     });
 
-    return () => unsubscribe();
+    const userUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+      if (doc.exists()) {
+        setUserData(doc.data());
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      userUnsubscribe();
+    };
   }, [user]);
+
+  const progress = userData ? Math.min(100, Math.round((userData.completedTasks / (userData.dailyGoal || 1)) * 100)) : 0;
+  const caloriesToGo = userData ? Math.max(0, 2500 - (userData.caloriesBurned || 0)) : 2500;
 
   const addSampleWorkout = async () => {
     if (!user) return;
@@ -77,12 +90,12 @@ export default function WorkoutPage() {
             </div>
             <div className="mt-8 flex items-end justify-between relative z-10">
               <div>
-                <p className="text-on-surface-variant text-sm font-medium">Weekly Completion</p>
-                <p className="text-3xl font-headline font-bold text-primary">68%</p>
+                <p className="text-on-surface-variant text-sm font-medium">Daily Completion</p>
+                <p className="text-3xl font-headline font-bold text-primary">{progress}%</p>
               </div>
               <div className="flex -space-x-2">
-                {['M', 'T', 'W', 'T'].map((day, i) => (
-                  <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-background ${i % 2 === 0 ? 'bg-primary text-background' : 'bg-zinc-800 text-zinc-500'}`}>
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                  <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-background ${i < (userData?.streak || 0) % 7 ? 'bg-primary text-background' : 'bg-zinc-800 text-zinc-500'}`}>
                     {day}
                   </div>
                 ))}
@@ -96,7 +109,7 @@ export default function WorkoutPage() {
                 <circle className="text-surface-container-highest" cx="64" cy="64" r="58" fill="transparent" stroke="currentColor" strokeWidth="8" />
                 <motion.circle
                   initial={{ strokeDashoffset: 364.4 }}
-                  animate={{ strokeDashoffset: 364.4 * 0.3 }}
+                  animate={{ strokeDashoffset: 364.4 * (caloriesToGo / 2500) }}
                   className="text-primary"
                   cx="64" cy="64" r="58" fill="transparent" stroke="currentColor" strokeWidth="8"
                   strokeDasharray="364.4"
@@ -104,7 +117,7 @@ export default function WorkoutPage() {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-headline font-extrabold">700</span>
+                <span className="text-2xl font-headline font-extrabold">{caloriesToGo}</span>
                 <span className="text-[10px] uppercase tracking-tighter text-on-surface-variant">kcal to go</span>
               </div>
             </div>

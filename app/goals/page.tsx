@@ -22,6 +22,7 @@ interface Goal {
 export default function GoalsPage() {
   const { user } = useFirebase();
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -34,8 +35,19 @@ export default function GoalsPage() {
       handleFirestoreError(error, OperationType.LIST, 'users/' + user.uid + '/goals');
     });
 
-    return () => unsubscribe();
+    const userUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+      if (doc.exists()) {
+        setUserData(doc.data());
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      userUnsubscribe();
+    };
   }, [user]);
+
+  const progress = userData ? Math.min(100, Math.round((userData.completedTasks / (userData.dailyGoal || 1)) * 100)) : 0;
 
   const addSampleGoal = async () => {
     if (!user) return;
@@ -76,15 +88,15 @@ export default function GoalsPage() {
             <div className="md:col-span-2 bg-surface-container-low p-8 rounded-3xl flex flex-col justify-between min-h-[240px]">
               <div className="flex justify-between items-start">
                 <div className="flex flex-col gap-1">
-                  <span className="text-primary text-5xl font-headline font-extrabold">82%</span>
-                  <span className="text-on-surface-variant text-sm font-label uppercase tracking-wider">Weekly Completion Rate</span>
+                  <span className="text-primary text-5xl font-headline font-extrabold">{progress}%</span>
+                  <span className="text-on-surface-variant text-sm font-label uppercase tracking-wider">Daily Completion Rate</span>
                 </div>
                 <div className="w-24 h-24">
                   <svg className="w-full h-full" viewBox="0 0 36 36">
                     <path className="text-surface-container-highest" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
                     <motion.path
                       initial={{ strokeDasharray: "0, 100" }}
-                      animate={{ strokeDasharray: "82, 100" }}
+                      animate={{ strokeDasharray: `${progress}, 100` }}
                       className="text-primary"
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                       fill="none"
@@ -96,15 +108,18 @@ export default function GoalsPage() {
                 </div>
               </div>
               <div className="mt-4 flex gap-4 overflow-hidden">
-                {[1, 2, 3].map(i => <div key={i} className="h-1 bg-primary rounded-full flex-1" />)}
-                {[4, 5].map(i => <div key={i} className="h-1 bg-primary/20 rounded-full flex-1" />)}
+                <div className="h-1 bg-primary rounded-full flex-1" style={{ opacity: progress > 20 ? 1 : 0.2 }} />
+                <div className="h-1 bg-primary rounded-full flex-1" style={{ opacity: progress > 40 ? 1 : 0.2 }} />
+                <div className="h-1 bg-primary rounded-full flex-1" style={{ opacity: progress > 60 ? 1 : 0.2 }} />
+                <div className="h-1 bg-primary rounded-full flex-1" style={{ opacity: progress > 80 ? 1 : 0.2 }} />
+                <div className="h-1 bg-primary rounded-full flex-1" style={{ opacity: progress >= 100 ? 1 : 0.2 }} />
               </div>
             </div>
             <div className="bg-surface-container p-8 rounded-3xl flex flex-col justify-between border border-primary/5">
               <Sparkles className="text-tertiary text-4xl" />
               <div>
                 <h3 className="text-on-surface font-headline font-bold text-xl mb-1">Study Streak</h3>
-                <p className="text-on-surface-variant text-sm">12 days and counting. You&apos;re in the top 5% of active pulses this month.</p>
+                <p className="text-on-surface-variant text-sm">{userData?.streak || 0} days and counting. Keep your pulse active!</p>
               </div>
             </div>
           </div>

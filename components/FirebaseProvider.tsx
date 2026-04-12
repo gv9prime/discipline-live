@@ -48,8 +48,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
               displayName: user.displayName || (user.isAnonymous ? 'Convidado' : 'User'),
               photoURL: user.photoURL || '',
               streak: 0,
-              dailyGoal: 75,
-              weeklyCompletion: 0,
+              dailyGoal: 100,
+              completedTasks: 0,
+              pendingTasks: 0,
+              waterIntake: 0,
+              sleepQuality: 0,
               createdAt: new Date().toISOString(),
               isAnonymous: user.isAnonymous || false
             }, { merge: true }).catch(err => console.error('Failed to create user doc:', err));
