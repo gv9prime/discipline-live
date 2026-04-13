@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useFirebase } from '@/components/FirebaseProvider';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/lib/error-handler';
 import { motion } from 'framer-motion';
@@ -44,10 +44,14 @@ export default function GoalsPage() {
       handleFirestoreError(error, OperationType.LIST, 'users/' + user.uid + '/goals');
     });
 
-    const userUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-      if (doc.exists()) {
-        setUserData(doc.data());
+    const userUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+      if (snapshot.exists()) {
+        setUserData(snapshot.data());
       }
+    }, (error) => {
+      console.warn('Firestore user access error in Goals:', error.message);
+      const localUserData = localStorage.getItem('obsidian_pulse_user_data');
+      if (localUserData) setUserData(JSON.parse(localUserData));
     });
 
     return () => {

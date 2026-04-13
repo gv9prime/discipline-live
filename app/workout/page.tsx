@@ -3,11 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useFirebase } from '@/components/FirebaseProvider';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/lib/error-handler';
 import { motion } from 'framer-motion';
-import { Plus, Dumbbell, Play, Repeat, ChevronRight, Activity, Timer } from 'lucide-react';
+import { Plus, Dumbbell, Play, Repeat, ChevronRight, Activity, Timer, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 
 interface Exercise {
@@ -15,7 +15,65 @@ interface Exercise {
   sets: number;
   reps: string;
   image: string;
+  youtubeUrl?: string;
 }
+
+const WORKOUT_SCHEDULE: Record<string, any> = {
+  'segunda-feira': {
+    title: 'Costas e Peito',
+    description: 'Foco em Largura e Densidade Superior',
+    exercises: [
+      { name: 'Puxada Aberta', sets: 4, reps: '12-15', image: 'https://picsum.photos/seed/back/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=CAwf7n6Luuc' },
+      { name: 'Supino Inclinado', sets: 4, reps: '10-12', image: 'https://picsum.photos/seed/chest/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=8iP6nSWH-pQ' },
+      { name: 'Remada Baixa', sets: 3, reps: '12', image: 'https://picsum.photos/seed/row/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=GZbfZ033f74' }
+    ]
+  },
+  'terça-feira': {
+    title: 'Pernas e Abdominais',
+    description: 'Foco em Quadríceps e Core',
+    exercises: [
+      { name: 'Agachamento', sets: 4, reps: '10-12', image: 'https://picsum.photos/seed/squat/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=gcNh17Ckjgg' },
+      { name: 'Leg Press', sets: 3, reps: '15', image: 'https://picsum.photos/seed/legpress/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=IZxyjW7MPJQ' },
+      { name: 'Prancha', sets: 3, reps: '60s', image: 'https://picsum.photos/seed/plank/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=ASdvN_XEl_c' }
+    ]
+  },
+  'quarta-feira': {
+    title: 'Descanso Ativo',
+    description: 'Caminhada ou Yoga leve',
+    exercises: [
+      { name: 'Caminhada', sets: 1, reps: '30 min', image: 'https://picsum.photos/seed/walk/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=O_v9T6O_v9T' }
+    ]
+  },
+  'quinta-feira': {
+    title: 'Ombros e Braços',
+    description: 'Foco em Deltoides e Pump',
+    exercises: [
+      { name: 'Desenvolvimento', sets: 4, reps: '10', image: 'https://picsum.photos/seed/shoulder/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=qEwKCR5JCog' },
+      { name: 'Rosca Direta', sets: 3, reps: '12', image: 'https://picsum.photos/seed/biceps/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=QZ6L_XqU_XU' },
+      { name: 'Tríceps Corda', sets: 3, reps: '15', image: 'https://picsum.photos/seed/triceps/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=vB5OHsJ3EME' }
+    ]
+  },
+  'sexta-feira': {
+    title: 'Full Body Elite',
+    description: 'Circuito de alta intensidade',
+    exercises: [
+      { name: 'Burpees', sets: 4, reps: '15', image: 'https://picsum.photos/seed/burpee/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=dZgVxmf6jkA' },
+      { name: 'Flexões', sets: 4, reps: 'FALHA', image: 'https://picsum.photos/seed/pushup/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4' }
+    ]
+  },
+  'sábado': {
+    title: 'Cardio e Mobilidade',
+    description: 'Melhoria da performance atlética',
+    exercises: [
+      { name: 'Corrida', sets: 1, reps: '20 min', image: 'https://picsum.photos/seed/run/300/300', youtubeUrl: 'https://www.youtube.com/watch?v=5uW2K_f9T9k' }
+    ]
+  },
+  'domingo': {
+    title: 'Recuperação Total',
+    description: 'Preparação para a próxima semana',
+    exercises: []
+  }
+};
 
 interface Workout {
   id: string;
@@ -49,13 +107,19 @@ export default function WorkoutPage() {
       const workoutsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workout));
       setWorkouts(workoutsData);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users/' + user.uid + '/workouts');
+      console.warn('Firestore workouts access error:', error.message);
+      const localWorkouts = localStorage.getItem('obsidian_pulse_workouts');
+      if (localWorkouts) setWorkouts(JSON.parse(localWorkouts));
     });
 
-    const userUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-      if (doc.exists()) {
-        setUserData(doc.data());
+    const userUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+      if (snapshot.exists()) {
+        setUserData(snapshot.data());
       }
+    }, (error) => {
+      console.warn('Firestore user access error:', error.message);
+      const localUserData = localStorage.getItem('obsidian_pulse_user_data');
+      if (localUserData) setUserData(JSON.parse(localUserData));
     });
 
     return () => {
@@ -108,6 +172,9 @@ export default function WorkoutPage() {
     }
   };
 
+  const currentDay = new Date().toLocaleDateString('pt-PT', { weekday: 'long' }).toLowerCase();
+  const todaysPlan = WORKOUT_SCHEDULE[currentDay] || WORKOUT_SCHEDULE['domingo'];
+
   return (
     <AppLayout>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-32 space-y-10">
@@ -116,7 +183,7 @@ export default function WorkoutPage() {
           <div className="md:col-span-2 bg-surface-container-low rounded-3xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden group">
             <div className="relative z-10">
               <span className="text-primary font-headline tracking-widest text-xs uppercase font-bold">Current Phase</span>
-              <h2 className="text-3xl sm:text-4xl font-headline font-extrabold mt-2 leading-tight">Elite Hypertrophy <br/><span className="text-on-surface-variant">V2.4</span></h2>
+              <h2 className="text-3xl sm:text-4xl font-headline font-extrabold mt-2 leading-tight">{todaysPlan.title} <br/><span className="text-on-surface-variant">V2.4</span></h2>
             </div>
             <div className="mt-8 flex items-end justify-between relative z-10">
               <div>
@@ -158,13 +225,13 @@ export default function WorkoutPage() {
         {/* Training Plan Tabs */}
         <section className="overflow-x-auto no-scrollbar">
           <div className="flex gap-3 min-w-max">
-            {['Monday', 'Wednesday', 'Friday', 'Saturday'].map((day, i) => (
+            {Object.keys(WORKOUT_SCHEDULE).map((day) => (
               <button 
                 key={day}
-                className={`px-6 py-4 rounded-2xl flex flex-col items-start gap-1 transition-all ${i === 0 ? 'bg-primary/10 text-primary shadow-[0_0_15px_rgba(0,229,255,0.1)]' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}`}
+                className={`px-6 py-4 rounded-2xl flex flex-col items-start gap-1 transition-all ${day === currentDay ? 'bg-primary/10 text-primary shadow-[0_0_15px_rgba(0,229,255,0.1)]' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}`}
               >
                 <span className="text-[10px] uppercase tracking-widest font-bold opacity-70">{day}</span>
-                <span className="font-headline font-bold text-sm">{i === 0 ? 'Largura e Peito' : 'Braços - Pump Extremo'}</span>
+                <span className="font-headline font-bold text-sm">{WORKOUT_SCHEDULE[day].title}</span>
               </button>
             ))}
           </div>
@@ -174,23 +241,21 @@ export default function WorkoutPage() {
         <section className="space-y-4">
           <div className="flex justify-between items-end mb-6">
             <div>
-              <h3 className="text-2xl font-headline font-extrabold uppercase tracking-tight">Monday Routine</h3>
-              <p className="text-on-surface-variant text-sm">Focus: Lat Width & Pectoral Density</p>
+              <h3 className="text-2xl font-headline font-extrabold uppercase tracking-tight capitalize">{currentDay} Routine</h3>
+              <p className="text-on-surface-variant text-sm">{todaysPlan.description}</p>
             </div>
             <div className="text-right">
               <span className="bg-secondary/10 text-secondary text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">Active Session</span>
             </div>
           </div>
 
-          {workouts.length === 0 ? (
+          {todaysPlan.exercises.length === 0 ? (
             <div className="text-center py-12 bg-surface-container rounded-3xl border border-dashed border-white/10">
-              <p className="text-on-surface-variant mb-4">No workouts logged yet.</p>
-              <button onClick={addSampleWorkout} className="text-primary font-bold flex items-center gap-2 mx-auto">
-                <Plus size={20} /> Add Sample Workout
-              </button>
+              <p className="text-on-surface-variant mb-4">Dia de descanso e recuperação.</p>
+              <Sparkles className="text-primary mx-auto" size={32} />
             </div>
           ) : (
-            workouts[0].exercises.map((exercise, i) => (
+            todaysPlan.exercises.map((exercise: any, i: number) => (
               <div key={i} className="bg-surface-container rounded-3xl p-1 flex items-center group transition-all hover:bg-surface-container-high">
                 <div className="w-24 h-24 rounded-2xl overflow-hidden m-2 shrink-0 relative">
                   <Image
@@ -215,9 +280,16 @@ export default function WorkoutPage() {
                   </div>
                 </div>
                 <div className="pr-6">
-                  <button className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-all shadow-lg">
-                    <Play size={20} fill="currentColor" />
-                  </button>
+                  {exercise.youtubeUrl && (
+                    <a 
+                      href={exercise.youtubeUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-all shadow-lg"
+                    >
+                      <Play size={20} fill="currentColor" />
+                    </a>
+                  )}
                 </div>
               </div>
             ))

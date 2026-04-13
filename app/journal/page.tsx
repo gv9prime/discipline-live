@@ -21,6 +21,10 @@ export default function JournalPage() {
   const { user } = useFirebase();
   const [nutrition, setNutrition] = useState<NutritionLog[]>([]);
   const [reflection, setReflection] = useState('');
+  const [showMealModal, setShowMealModal] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState('');
+  const [mealItems, setMealItems] = useState('');
+  const [mealCalories, setMealCalories] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -36,11 +40,42 @@ export default function JournalPage() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NutritionLog));
       setNutrition(data);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users/' + user.uid + '/nutrition');
+      console.warn('Firestore nutrition access error:', error.message);
+      const localNutrition = localStorage.getItem('obsidian_pulse_nutrition');
+      if (localNutrition) setNutrition(JSON.parse(localNutrition));
     });
 
     return () => unsubscribe();
   }, [user]);
+
+  const saveMeal = async () => {
+    if (!user || !selectedMealType || !mealItems) return;
+    
+    const newMeal = {
+      mealType: selectedMealType,
+      calories: parseInt(mealCalories) || 0,
+      items: mealItems.split(',').map(i => i.trim()),
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    if (user.uid === 'local-user') {
+      const updatedNutrition = [...nutrition, { ...newMeal, id: Date.now().toString() }];
+      setNutrition(updatedNutrition);
+      localStorage.setItem('obsidian_pulse_nutrition', JSON.stringify(updatedNutrition));
+      setShowMealModal(false);
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'users', user.uid, 'nutrition'), {
+        ...newMeal,
+        createdAt: serverTimestamp()
+      });
+      setShowMealModal(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'users/' + user.uid + '/nutrition');
+    }
+  };
 
   const saveReflection = async () => {
     if (!user || !reflection) return;
@@ -87,10 +122,67 @@ export default function JournalPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {['Pequeno-almoço', 'Almoço', 'Jantar', 'Snacks'].map((meal) => (
-              <MealCard key={meal} title={meal} nutrition={nutrition.find(n => n.mealType === meal)} />
+              <MealCard 
+                key={meal} 
+                title={meal} 
+                nutrition={nutrition.find(n => n.mealType === meal)} 
+                onAdd={() => {
+                  setSelectedMealType(meal);
+                  setShowMealModal(true);
+                }}
+              />
             ))}
           </div>
         </section>
+
+        {/* Meal Modal */}
+        {showMealModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-surface-container rounded-[2rem] p-8 w-full max-w-md border border-white/5 space-y-6"
+            >
+              <h3 className="text-2xl font-headline font-bold">Registar {selectedMealType}</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold mb-2 block">Alimentos (separados por vírgula)</label>
+                  <input 
+                    type="text" 
+                    value={mealItems}
+                    onChange={(e) => setMealItems(e.target.value)}
+                    placeholder="Ex: Ovos, Pão, Café"
+                    className="w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/40"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-on-surface-variant font-bold mb-2 block">Calorias (opcional)</label>
+                  <input 
+                    type="number" 
+                    value={mealCalories}
+                    onChange={(e) => setMealCalories(e.target.value)}
+                    placeholder="Ex: 450"
+                    className="w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/40"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setShowMealModal(false)}
+                  className="flex-grow py-3 rounded-xl font-bold text-on-surface-variant hover:bg-white/5 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={saveMeal}
+                  className="flex-grow py-3 rounded-xl font-bold bg-primary text-background shadow-lg hover:scale-105 transition-transform"
+                >
+                  Guardar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
         {/* Journal Section */}
         <section className="space-y-8">
@@ -145,7 +237,7 @@ export default function JournalPage() {
   );
 }
 
-function MealCard({ title, nutrition }: { title: string, nutrition?: NutritionLog }) {
+function MealCard({ title, nutrition, onAdd }: { title: string, nutrition?: NutritionLog, onAdd: () => void }) {
   return (
     <div className="group relative overflow-hidden rounded-2xl bg-surface-container-low p-6 transition-all hover:bg-surface-container border border-white/5">
       <div className="flex justify-between items-start mb-8">
@@ -155,7 +247,10 @@ function MealCard({ title, nutrition }: { title: string, nutrition?: NutritionLo
             {nutrition ? `${nutrition.calories} kcal` : 'Planeado • 500 kcal'}
           </p>
         </div>
-        <button className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center group-active:scale-95 transition-all">
+        <button 
+          onClick={onAdd}
+          className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center group-active:scale-95 transition-all"
+        >
           <Plus size={20} />
         </button>
       </div>
