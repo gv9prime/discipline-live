@@ -12,7 +12,7 @@ import { AuthForm } from '@/components/AuthForm';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useFirebase();
+  const { user, loading, logout, authError } = useFirebase();
   const pathname = usePathname();
   const [showDownloadInfo, setShowDownloadInfo] = React.useState(false);
 
@@ -20,6 +20,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full bg-surface-container-low p-8 rounded-[2rem] border border-error/20 text-center space-y-6">
+          <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center text-error mx-auto">
+            <Activity size={32} />
+          </div>
+          <h2 className="text-2xl font-headline font-bold text-on-surface">Configuração Necessária</h2>
+          <p className="text-on-surface-variant text-sm leading-relaxed">
+            {authError}
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full py-4 bg-primary text-background rounded-full font-bold uppercase tracking-widest text-xs hover:opacity-90 transition-all"
+          >
+            Tentar Novamente
+          </button>
+        </div>
       </div>
     );
   }
@@ -41,9 +63,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 referrerPolicy="no-referrer"
               />
             </div>
-            <span className="text-lg sm:text-xl font-headline font-bold tracking-tighter text-primary uppercase truncate">Obsidian Pulse</span>
+            <div className="flex flex-col">
+              <span className="text-lg sm:text-xl font-headline font-bold tracking-tighter text-primary uppercase truncate">Obsidian Pulse</span>
+              {user?.uid === 'local-user' && (
+                <span className="text-[8px] uppercase tracking-widest text-on-surface-variant">Modo Local</span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            {user?.uid === 'local-user' ? (
+              <Link 
+                href="/auth"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all text-[10px] font-bold uppercase tracking-widest border border-white/5"
+              >
+                Entrar
+              </Link>
+            ) : (
+              <button 
+                onClick={() => logout()}
+                className="p-2 rounded-full hover:bg-white/5 text-on-surface-variant transition-colors"
+                title="Sair"
+              >
+                <LogOut size={20} />
+              </button>
+            )}
             <button 
               className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all text-xs font-bold uppercase tracking-widest border border-primary/20"
               onClick={() => setShowDownloadInfo(!showDownloadInfo)} 

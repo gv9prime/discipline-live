@@ -35,6 +35,15 @@ export default function WorkoutPage() {
   useEffect(() => {
     if (!user) return;
 
+    if (user.uid === 'local-user') {
+      const localUserData = localStorage.getItem('obsidian_pulse_user_data');
+      if (localUserData) setTimeout(() => setUserData(JSON.parse(localUserData)), 0);
+
+      const localWorkouts = localStorage.getItem('obsidian_pulse_workouts');
+      if (localWorkouts) setTimeout(() => setWorkouts(JSON.parse(localWorkouts)), 0);
+      return;
+    }
+
     const q = query(collection(db, 'users', user.uid, 'workouts'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const workoutsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workout));
@@ -60,6 +69,27 @@ export default function WorkoutPage() {
 
   const addSampleWorkout = async () => {
     if (!user) return;
+
+    if (user.uid === 'local-user') {
+      const newWorkout: Workout = {
+        id: Date.now().toString(),
+        title: 'Elite Hypertrophy V2.4',
+        description: 'Focus: Lat Width & Pectoral Density',
+        duration: 60,
+        intensity: 'High',
+        exercises: [
+          { name: 'Puxada Aberta', sets: 4, reps: '12-15', image: 'https://picsum.photos/seed/back/300/300' },
+          { name: 'Supino Inclinado', sets: 4, reps: '10-12', image: 'https://picsum.photos/seed/chest/300/300' },
+          { name: 'Remada Baixa', sets: 3, reps: '12', image: 'https://picsum.photos/seed/row/300/300' }
+        ],
+        date: new Date().toISOString()
+      };
+      const updatedWorkouts = [newWorkout, ...workouts];
+      setWorkouts(updatedWorkouts);
+      localStorage.setItem('obsidian_pulse_workouts', JSON.stringify(updatedWorkouts));
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'users', user.uid, 'workouts'), {
         title: 'Elite Hypertrophy V2.4',

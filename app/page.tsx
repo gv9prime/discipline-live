@@ -18,6 +18,28 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
 
+    if (user.uid === 'local-user') {
+      const localData = localStorage.getItem('obsidian_pulse_user_data');
+      if (localData) {
+        setTimeout(() => setUserData(JSON.parse(localData)), 0);
+      } else {
+        const initialData = {
+          streak: 0,
+          dailyGoal: 100,
+          completedTasks: 0,
+          pendingTasks: 0,
+          waterIntake: 0,
+          sleepQuality: 0,
+          caloriesBurned: 0
+        };
+        setTimeout(() => {
+          setUserData(initialData);
+          localStorage.setItem('obsidian_pulse_user_data', JSON.stringify(initialData));
+        }, 0);
+      }
+      return;
+    }
+
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
       if (doc.exists()) {
         setUserData(doc.data());
@@ -31,9 +53,18 @@ export default function Dashboard() {
 
   const updateValue = async (field: string, newValue: number) => {
     if (!user) return;
+    const val = Math.max(0, newValue);
+    
+    if (user.uid === 'local-user') {
+      const updatedData = { ...userData, [field]: val };
+      setUserData(updatedData);
+      localStorage.setItem('obsidian_pulse_user_data', JSON.stringify(updatedData));
+      return;
+    }
+
     try {
       await updateDoc(doc(db, 'users', user.uid), {
-        [field]: Math.max(0, newValue)
+        [field]: val
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);

@@ -115,8 +115,21 @@ export function AuthForm() {
             </div>
           )}
 
-          {error && <p className="text-error text-sm px-2">{error}</p>}
-          {message && <p className="text-primary text-sm px-2">{message}</p>}
+          {error && (
+            <div className="bg-error/10 border border-error/20 rounded-xl p-4 space-y-2">
+              <p className="text-error text-sm font-medium">{error}</p>
+              {error.includes('utilizado') && mode === 'register' && (
+                <button 
+                  type="button"
+                  onClick={() => toggleMode('login')}
+                  className="text-primary text-xs font-bold uppercase tracking-widest hover:underline"
+                >
+                  Tentar Entrar em vez de Registar
+                </button>
+              )}
+            </div>
+          )}
+          {message && <p className="text-primary text-sm px-2 bg-primary/10 border border-primary/20 rounded-xl p-4">{message}</p>}
 
           <button
             type="submit"

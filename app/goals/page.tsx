@@ -27,6 +27,15 @@ export default function GoalsPage() {
   useEffect(() => {
     if (!user) return;
 
+    if (user.uid === 'local-user') {
+      const localUserData = localStorage.getItem('obsidian_pulse_user_data');
+      if (localUserData) setTimeout(() => setUserData(JSON.parse(localUserData)), 0);
+
+      const localGoals = localStorage.getItem('obsidian_pulse_goals');
+      if (localGoals) setTimeout(() => setGoals(JSON.parse(localGoals)), 0);
+      return;
+    }
+
     const q = query(collection(db, 'users', user.uid, 'goals'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const goalsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
@@ -51,6 +60,21 @@ export default function GoalsPage() {
 
   const addSampleGoal = async () => {
     if (!user) return;
+
+    if (user.uid === 'local-user') {
+      const newGoal: Goal = {
+        id: Date.now().toString(),
+        title: 'New Study Goal',
+        category: 'Studying',
+        status: 'in-progress',
+        progress: 0
+      };
+      const updatedGoals = [newGoal, ...goals];
+      setGoals(updatedGoals);
+      localStorage.setItem('obsidian_pulse_goals', JSON.stringify(updatedGoals));
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'users', user.uid, 'goals'), {
         title: 'New Study Goal',

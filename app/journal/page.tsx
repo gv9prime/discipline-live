@@ -25,6 +25,12 @@ export default function JournalPage() {
   useEffect(() => {
     if (!user) return;
 
+    if (user.uid === 'local-user') {
+      const localNutrition = localStorage.getItem('obsidian_pulse_nutrition');
+      if (localNutrition) setTimeout(() => setNutrition(JSON.parse(localNutrition)), 0);
+      return;
+    }
+
     const q = query(collection(db, 'users', user.uid, 'nutrition'), orderBy('date', 'desc'), limit(10));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NutritionLog));
@@ -38,6 +44,19 @@ export default function JournalPage() {
 
   const saveReflection = async () => {
     if (!user || !reflection) return;
+
+    if (user.uid === 'local-user') {
+      const localJournal = JSON.parse(localStorage.getItem('obsidian_pulse_journal') || '[]');
+      localJournal.push({
+        content: reflection,
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('obsidian_pulse_journal', JSON.stringify(localJournal));
+      setReflection('');
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'users', user.uid, 'journal'), {
         content: reflection,

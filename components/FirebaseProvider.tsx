@@ -20,6 +20,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 interface FirebaseContextType {
   user: User | null;
   loading: boolean;
+  authError: string | null;
   login: () => Promise<void>;
   loginAnonymously: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
@@ -33,12 +34,14 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined
 export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLocalMode, setIsLocalMode] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          // Ensure user document exists - use a separate function to avoid blocking auth state
+          // Ensure user document exists
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef).catch(() => null);
           
@@ -59,16 +62,24 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           }
           setUser(user);
           setLoading(false);
+          setAuthError(null);
+          setIsLocalMode(false);
         } else {
           // Automatically sign in anonymously if no user is present
           signInAnonymously(auth).catch(err => {
-            console.error('Auto anonymous login failed:', err);
+            console.warn('Auto anonymous login failed, falling back to Local Mode:', err.message);
+            if (err.code === 'auth/admin-restricted-operation' || err.code === 'auth/operation-not-allowed') {
+              // Fallback to local mode silently
+              setIsLocalMode(true);
+              setAuthError(null);
+            } else {
+              setAuthError('Erro ao iniciar sessão automaticamente: ' + err.message);
+            }
             setLoading(false);
           });
         }
       } catch (error) {
         console.error('Error in auth state change:', error);
-        setUser(user);
         setLoading(false);
       }
     });
@@ -84,11 +95,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error('Google Login failed:', error);
       if (error.code === 'auth/popup-blocked') {
-        throw new Error('O popup foi bloqueado pelo navegador. Por favor, permita popups para este site.');
+        throw new Error('O popup foi bloqueado pelo navegador.');
       } else if (error.code === 'auth/unauthorized-domain') {
-        throw new Error('Este domínio não está autorizado no Firebase Console. Adicione "' + window.location.hostname + '" aos domínios autorizados.');
+        throw new Error('Este domínio não está autorizado no Firebase Console.');
       } else if (error.code === 'auth/operation-not-allowed') {
-        throw new Error('O login com Google não está ativado no Firebase Console.');
+        throw new Error('O login com Google não está ativado no Firebase Console. Por favor, ative-o em Authentication > Sign-in method.');
       }
       throw error;
     }
@@ -99,8 +110,9 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       await signInAnonymously(auth);
     } catch (error: any) {
       console.error('Anonymous login failed:', error);
-      if (error.code === 'auth/operation-not-allowed') {
-        throw new Error('O login anónimo não está ativado no Firebase Console.');
+      if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/admin-restricted-operation') {
+        setIsLocalMode(true);
+        throw new Error('O login anónimo não está ativado. A entrar em Modo Local.');
       }
       throw error;
     }
@@ -116,7 +128,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       } else if (error.code === 'auth/invalid-email') {
         throw new Error('O formato do email é inválido.');
       } else if (error.code === 'auth/operation-not-allowed') {
-        throw new Error('O login com Email/Senha não está ativado no Firebase Console.');
+        throw new Error('O login com Email/Senha não está ativado no Firebase Console. Por favor, ative-o em Authentication > Sign-in method > Email/Password.');
       }
       throw error;
     }
@@ -133,7 +145,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       } else if (error.code === 'auth/weak-password') {
         throw new Error('A palavra-passe deve ter pelo menos 6 caracteres.');
       } else if (error.code === 'auth/operation-not-allowed') {
-        throw new Error('O registo com Email/Senha não está ativado no Firebase Console.');
+        throw new Error('O registo com Email/Senha não está ativado no Firebase Console. Por favor, ative-o em Authentication > Sign-in method > Email/Password.');
       }
       throw error;
     }
@@ -156,13 +168,24 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await signOut(auth);
+      setIsLocalMode(false);
     } catch (error) {
       console.error('Logout failed:', error);
     }
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, loading, login, loginAnonymously, loginWithEmail, registerWithEmail, resetPassword, logout }}>
+    <FirebaseContext.Provider value={{ 
+      user: isLocalMode ? ({ uid: 'local-user', displayName: 'Utilizador Local', isAnonymous: true } as any) : user, 
+      loading, 
+      authError: isLocalMode ? null : authError, 
+      login, 
+      loginAnonymously, 
+      loginWithEmail, 
+      registerWithEmail, 
+      resetPassword, 
+      logout 
+    }}>
       {children}
     </FirebaseContext.Provider>
   );

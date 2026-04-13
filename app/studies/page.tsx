@@ -56,6 +56,14 @@ export default function StudiesPage() {
   useEffect(() => {
     if (!user) return;
 
+    if (user.uid === 'local-user') {
+      const localData = localStorage.getItem('obsidian_pulse_studies');
+      if (localData) {
+        setTimeout(() => setSubjectsData(JSON.parse(localData)), 0);
+      }
+      return;
+    }
+
     const q = query(collection(db, 'users', user.uid, 'studies'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data: SubjectsState = {};
@@ -73,6 +81,13 @@ export default function StudiesPage() {
   const handleSave = async () => {
     if (!user) return;
     setIsSaving(true);
+
+    if (user.uid === 'local-user') {
+      localStorage.setItem('obsidian_pulse_studies', JSON.stringify(subjectsData));
+      setTimeout(() => setIsSaving(false), 500);
+      return;
+    }
+
     try {
       const subjectRef = doc(db, 'users', user.uid, 'studies', activeSubject);
       await setDoc(subjectRef, {
