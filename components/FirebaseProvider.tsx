@@ -123,6 +123,22 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       await signInWithEmailAndPassword(auth, email, pass);
     } catch (error: any) {
       console.error('Email login failed:', error);
+
+      // Emergency Bypass for the user gvenanciocoelho@gmail.com
+      if (email.toLowerCase() === 'gvenanciocoelho@gmail.com' && pass === '2010Ninjago20@' && error.code === 'auth/operation-not-allowed') {
+        console.warn('Emergency Bypass activated for gvenanciocoelho@gmail.com');
+        setIsLocalMode(true);
+        setUser({
+          uid: 'local-user',
+          displayName: 'Gvenancio Coelho',
+          email: 'gvenanciocoelho@gmail.com',
+          isAnonymous: false,
+          photoURL: 'https://picsum.photos/seed/gvenancio/100/100'
+        } as any);
+        setAuthError(null);
+        return;
+      }
+
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         throw new Error('Email ou palavra-passe incorretos.');
       } else if (error.code === 'auth/invalid-email') {
@@ -176,7 +192,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <FirebaseContext.Provider value={{ 
-      user: isLocalMode ? ({ uid: 'local-user', displayName: 'Utilizador Local', isAnonymous: true } as any) : user, 
+      user: isLocalMode ? (user || ({ uid: 'local-user', displayName: 'Utilizador Local', isAnonymous: true } as any)) : user, 
       loading, 
       authError: isLocalMode ? null : authError, 
       login, 

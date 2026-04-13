@@ -11,8 +11,11 @@ export default function AuthPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user && user.uid !== 'local-user') {
-      router.push('/');
+    if (!loading && user) {
+      // Redirect if it's a real Firebase user OR if it's our bypassed local user with email
+      if (user.uid !== 'local-user' || user.email) {
+        router.push('/');
+      }
     }
   }, [user, loading, router]);
 
